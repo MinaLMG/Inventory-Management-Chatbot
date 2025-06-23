@@ -1,8 +1,16 @@
 const express = require("express");
-const app = express();
+const cors = require("cors");
 require("dotenv").config();
 require("./config/db");
 
+const app = express();
+// ✅ Allow requests from React dev server
+app.use(
+    cors({
+        origin: "http://localhost:3000", // React app
+        credentials: true,
+    })
+);
 const inventoryRoutes = require("./routes/inventoryRoutes");
 
 app.use(express.json());
