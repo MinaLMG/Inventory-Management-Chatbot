@@ -1,6 +1,4 @@
 import styles from "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
-
-import { useState, useEffect } from "react";
 import {
     MainContainer,
     ChatContainer,
@@ -9,13 +7,15 @@ import {
     MessageInput,
     TypingIndicator,
 } from "@chatscope/chat-ui-kit-react";
+
+import { useEffect, useState } from "react";
 import axios from "axios";
 
-export default function Chat({ onLogout }) {
+export default function Chat2({ onLogout }) {
     const [typing, setTyping] = useState(false);
-    const [messages, setMessages] = useState([{}]);
+    const [messages, setMessages] = useState([]);
     const [token, setToken] = useState(localStorage.getItem("token"));
-    const [userId, setUserID] = useState(localStorage.getItem("userId"));
+    const [userId, setUserId] = useState(localStorage.getItem("userId"));
     const fetchMessages = async () => {
         try {
             if (!token || !userId) return;
@@ -41,43 +41,17 @@ export default function Chat({ onLogout }) {
             console.error("Failed to load messages:", err);
         }
     };
+
     useEffect(() => {
         fetchMessages();
     }, []);
-    const SYSTEM_PROMPT = `
-    You are a backend interpreter for an inventory chatbot.
-    Your job is to extract the intent and relevant fields from user commands.
-    Return a JSON object in this format:
-
-    {
-      "action": "add" | "update" | "delete" | "view" | "info",
-      "name": "item name",
-      "quantity": number (optional),
-      "price": number (optional)
-    }
-
-    If the user input is invalid or unclear, return:
-    { "action": "other" }
-
-    don't return anything else, only a string starting with the opening brace of the dictionary "{"
-    `;
-
-    const handleSend = async (message) => {
-        const newMessage = {
-            message: message,
-            sender: "user",
-            direction: "outgoing",
-        };
-
-        const newMessages = [...messages, newMessage];
-        setMessages(newMessages); // Update UI immediately
+    const addNewMessage = async (message) => {
         try {
-            // Step 1: Save the message in the backend
             await axios.post(
                 process.env.REACT_APP_BACKEND + "messages",
                 {
-                    sender: "user",
-                    content: message,
+                    sender: message.sender,
+                    content: message.message,
                 },
                 {
                     headers: {
@@ -90,121 +64,247 @@ export default function Chat({ onLogout }) {
         } catch (err) {
             console.error("Error sending or reloading messages:", err);
         }
+    };
+    const tools = [
+        {
+            type: "function",
+            function: {
+                name: "view_all_inventory",
+                description: "Get a list of all inventory items",
+                parameters: {
+                    type: "object",
+                    properties: {},
+                    required: [],
+                },
+            },
+        },
+        {
+            type: "function",
+            function: {
+                name: "view_item",
+                description: "Get details about a specific item",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" },
+                    },
+                    required: ["name"],
+                },
+            },
+        },
+        {
+            type: "function",
+            function: {
+                name: "add_item",
+                description: "Add a new item",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" },
+                        quantity: { type: "number" },
+                        price: { type: "number" },
+                    },
+                    required: ["name", "quantity", "price"],
+                },
+            },
+        },
+        {
+            type: "function",
+            function: {
+                name: "update_item",
+                description: "Update item quantity or price",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" },
+                        quantity: { type: "number" },
+                        price: { type: "number" },
+                    },
+                    required: ["name"],
+                },
+            },
+        },
+        {
+            type: "function",
+            function: {
+                name: "delete_item",
+                description: "Delete an item",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" },
+                    },
+                    required: ["name"],
+                },
+            },
+        },
+    ];
 
-        // Optional: trigger bot response logic
+    const handleSend = async (userMessage) => {
+        const newMessage = {
+            message: userMessage,
+            sender: "user",
+            direction: "outgoing",
+        };
+        await addNewMessage(newMessage);
+        // const updatedMessages = [...messages, newMessage];
+        // setMessages(updatedMessages);
         setTyping(true);
-        processMessages(newMessages);
+        await processLLMToolCall(userMessage);
     };
 
-    async function applySuitableRequests(object) {
-        switch (object.action) {
-            case "view":
-                let inventories = [];
-
-                try {
-                    const invRes = await axios.get(
-                        `${process.env.REACT_APP_BACKEND}inventory`,
-
-                        {
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                            },
-                        }
-                    );
-
-                    inventories = invRes.data.map((inv) => ({
-                        role: "user",
-                        content: `we have an inventory ${inv.name} with a price ${inv.price} and quantity ${inv.quantity}`,
-                    }));
-
-                    inventories = [
-                        {
-                            role: "system",
-                            content: `You are a helpful assistant that summarizes inventory data for non-technical users. 
-                            You'll be given all of the inventory items from the database agent. At the end, summarize the entire inventory 
-                            in a short, friendly way, like you're explaining it to a store owner. Group similar items together if possible.
-                            Do not list raw data, just give a helpful overview. 
-                            Don't tell the owner any unnecessary information.
-                            You may receive only one or two messages, or even nothing—so don't ask for more inventory items.`,
-                        },
-                        ...inventories,
-                    ];
-
-                    const llmRes = await axios.post(
-                        "https://openrouter.ai/api/v1/chat/completions",
-                        {
-                            // model: "meta-llama/llama-4-maverick:free",
-                            model: "deepseek/deepseek-chat-v3-0324:free",
-                            messages: inventories,
-                        },
-                        {
-                            headers: {
-                                Authorization:
-                                    "Bearer " + process.env.REACT_APP_LLM_KEY,
-                                "Content-Type": "application/json",
-                            },
-                        }
-                    );
-
-                    setMessages((prev) => [
-                        ...prev,
-                        {
-                            message: llmRes.data.choices[0].message.content,
-                            sender: "bot",
-                            direction: "incoming",
-                        },
-                    ]);
-                } catch (error) {
-                    console.error("Error in view action:", error);
-                }
-
-                break;
-
-            default:
-                break;
-        }
-    }
-    async function processMessages(messages) {
-        let apiMessages = messages.map((message) =>
-            message.sender === "bot"
-                ? { role: "assistant", content: message.message }
-                : { role: "user", content: message.message }
-        );
-
-        apiMessages = [
-            {
-                role: "system",
-                content: SYSTEM_PROMPT,
-            },
-            ...apiMessages,
-        ];
-
+    async function processLLMToolCall(userMessage) {
         try {
-            const res = await axios.post(
+            const response = await axios.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 {
                     model: "deepseek/deepseek-chat-v3-0324:free",
-                    messages: apiMessages,
+
+                    // model: "meta-llama/llama-4-maverick:free",
+                    messages: [
+                        {
+                            role: "system",
+                            content: `
+                            You are an intelligent assistant for managing a store's inventory system.
+                            
+                            Your job is to understand user requests and choose the most appropriate inventory-related tool to perform the action.
+                            You have access to the following tools:
+                            
+                            - \`view_all_inventory\`: Use when the user asks to view the full list of inventory items.
+                            - \`view_item\`: Use when the user asks about a specific item (e.g. "Show me details of the iPhone").
+                            - \`add_item\`: Use when the user wants to add a new item with quantity and price.
+                            - \`update_item\`: Use when the user wants to update an existing item's price and/or quantity.
+                            - \`delete_item\`: Use when the user wants to remove an item from the inventory.
+                            
+                            Only call a tool if the user's message contains enough clear information to complete the action.
+                            
+                            If the request is ambiguous or missing data, respond with a message that politely asks for clarification.
+                            
+                            Important:
+                            - Extract numbers accurately (like quantity = 5, price = 1200).
+                            - Assume price is in USD unless stated otherwise.
+                            - Use the correct item name exactly as written by the user.
+                            - Do NOT call any tool unless you're certain about all required parameters.
+                            
+                            Keep replies short and helpful, like you're speaking to a store manager.
+                            `.trim(),
+                            //   You'll be provided with the last few messages at the messages stream, don't care for the previous messages to the current message unless
+                        },
+                        { role: "user", content: userMessage },
+                    ],
+                    tools: tools,
+                    tool_choice: "auto",
                 },
                 {
                     headers: {
-                        Authorization:
-                            "Bearer " + process.env.REACT_APP_LLM_KEY,
+                        Authorization: `Bearer ${process.env.REACT_APP_LLM_KEY}`,
                         "Content-Type": "application/json",
                     },
                 }
             );
 
-            const parsed = JSON.parse(res.data.choices[0].message.content);
-            // const parsed = {
-            //     action: "view",
-            //     name: "",
-            //     quantity: null,
-            //     price: null,
-            // };
-            await applySuitableRequests(parsed);
-        } catch (error) {
-            console.error("Error processing LLM message:", error);
+            const choice = response.data.choices[0];
+
+            if (choice.finish_reason === "tool_calls") {
+                const toolCall = choice.message.tool_calls[0];
+                const toolName = toolCall.function.name;
+                const toolArgs = JSON.parse(toolCall.function.arguments);
+                await executeTool(toolName, toolArgs);
+            } else {
+                const reply = choice.message.content;
+                await addNewMessage({
+                    message: reply,
+                    sender: "bot",
+                    direction: "incoming",
+                });
+                // setMessages((prev) => [
+                //     ...prev,
+                //     {
+                //         message: reply,
+                //         sender: "bot",
+                //         direction: "incoming",
+                //     },
+                // ]);
+            }
+        } catch (err) {
+            console.error("LLM Error:", err);
+        }
+        setTyping(false);
+    }
+
+    async function executeTool(name, args) {
+        let botMessage = "";
+
+        try {
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+
+            if (name === "view_all_inventory") {
+                const res = await axios.get(
+                    `${process.env.REACT_APP_BACKEND}inventory`,
+                    config
+                );
+                if (res.data.length == 0) {
+                    botMessage = "You don't have any inventory at the moment";
+                } else {
+                    botMessage = res.data
+                        .map(
+                            (item) =>
+                                `${item.name}: ${item.quantity} units at $${item.price}`
+                        )
+                        .join("\n");
+                }
+            } else if (name === "view_item") {
+                const res = await axios.get(
+                    `${process.env.REACT_APP_BACKEND}inventory/${args.name}`,
+                    config
+                );
+                const item = res.data;
+                botMessage = `${item.name} - Quantity: ${item.quantity}, Price: $${item.price}`;
+            } else if (name === "add_item") {
+                await axios.post(
+                    `${process.env.REACT_APP_BACKEND}inventory`,
+                    args,
+                    config
+                );
+                botMessage = `Added ${args.name} to inventory.`;
+            } else if (name === "update_item") {
+                await axios.put(
+                    `${process.env.REACT_APP_BACKEND}inventory/${args.name}`,
+                    args,
+                    config
+                );
+                botMessage = `Updated ${args.name}.`;
+            } else if (name === "delete_item") {
+                await axios.delete(
+                    `${process.env.REACT_APP_BACKEND}inventory/${args.name}`,
+                    config
+                );
+                botMessage = `Deleted ${args.name}.`;
+            }
+            await addNewMessage({
+                message: botMessage,
+                sender: "bot",
+                direction: "incoming",
+            });
+
+            // setMessages((prev) => [
+            //     ...prev,
+            //     {
+            //         message: botMessage,
+            //         sender: "bot",
+            //         direction: "incoming",
+            //     },
+            // ]);
+        } catch (err) {
+            console.error(`Tool '${name}' failed:`, err);
+            setMessages((prev) => [
+                ...prev,
+                {
+                    message: `Error performing '${name}' action.`,
+                    sender: "bot",
+                    direction: "incoming",
+                },
+            ]);
         }
     }
 
@@ -223,19 +323,19 @@ export default function Chat({ onLogout }) {
                         scrollBehavior="smooth"
                         typingIndicator={
                             typing ? (
-                                <TypingIndicator content="Typing .." />
+                                <TypingIndicator content="Typing..." />
                             ) : null
                         }
                     >
                         {messages.map((msg, i) => (
-                            <Message key={i} model={msg}></Message>
+                            <Message key={i} model={msg} />
                         ))}
                     </MessageList>
                     <MessageInput
                         attachButton={false}
-                        placeholder="type message here ..."
+                        placeholder="Type message here..."
                         onSend={handleSend}
-                    ></MessageInput>
+                    />
                 </ChatContainer>
             </MainContainer>
             <button onClick={onLogout}>Logout</button>
