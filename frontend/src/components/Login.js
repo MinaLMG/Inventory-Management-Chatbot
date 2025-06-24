@@ -53,7 +53,6 @@ const AuthForm = ({ onLogin }) => {
                     ? { username, password }
                     : { username, password };
             const res = await axios.post(endpoint, body);
-            console.log(res.data);
             if (mode === "login") {
                 localStorage.setItem("token", res.data.token);
                 localStorage.setItem("userId", res.data.userId);
