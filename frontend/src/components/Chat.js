@@ -14,15 +14,14 @@ import axios from "axios";
 export default function Chat({ onLogout }) {
     const [typing, setTyping] = useState(false);
     const [messages, setMessages] = useState([{}]);
+    const [token, setToken] = useState(localStorage.getItem("token"));
+    const [userId, setUserID] = useState(localStorage.getItem("userId"));
     const fetchMessages = async () => {
         try {
-            const token = localStorage.getItem("token");
-            const userId = localStorage.getItem("userId");
-
             if (!token || !userId) return;
 
             const response = await axios.get(
-                `${process.env.REACT_APP_BACKEND}messages?`,
+                `${process.env.REACT_APP_BACKEND}messages`,
                 // userId=${userId}`,
                 {
                     headers: {
@@ -64,8 +63,6 @@ export default function Chat({ onLogout }) {
     `;
 
     const handleSend = async (message) => {
-        const token = localStorage.getItem("token");
-        const userId = localStorage.getItem("userId");
         const newMessage = {
             message: message,
             sender: "user",
@@ -106,7 +103,13 @@ export default function Chat({ onLogout }) {
 
                 try {
                     const invRes = await axios.get(
-                        process.env.REACT_APP_BACKEND + "inventory"
+                        `${process.env.REACT_APP_BACKEND}inventory`,
+
+                        {
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                            },
+                        }
                     );
 
                     inventories = invRes.data.map((inv) => ({
@@ -162,8 +165,6 @@ export default function Chat({ onLogout }) {
         }
     }
     async function processMessages(messages) {
-        const SYSTEM_PROMPT = `...`; // keep same
-
         let apiMessages = messages.map((message) =>
             message.sender === "bot"
                 ? { role: "assistant", content: message.message }
@@ -195,6 +196,12 @@ export default function Chat({ onLogout }) {
             );
 
             const parsed = JSON.parse(res.data.choices[0].message.content);
+            // const parsed = {
+            //     action: "view",
+            //     name: "",
+            //     quantity: null,
+            //     price: null,
+            // };
             await applySuitableRequests(parsed);
         } catch (error) {
             console.error("Error processing LLM message:", error);
