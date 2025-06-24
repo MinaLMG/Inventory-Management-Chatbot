@@ -11,9 +11,14 @@ app.use(
         credentials: true,
     })
 );
-const inventoryRoutes = require("./routes/inventoryRoutes");
-
 app.use(express.json());
+
+const inventoryRoutes = require("./routes/inventoryRoutes");
+const userRoutes = require("./routes/userRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+
+app.use("/users", userRoutes); // /users/register, /users/login
+app.use("/messages", messageRoutes); // /messages, POST/GET
 app.use("/inventory", inventoryRoutes);
 
 app.get("/", (req, res) => {

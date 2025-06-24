@@ -1,6 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const controller = require("../controllers/inventoryController");
+const controller = require("../controllers/InventoryController");
+
+const authenticate = require("../middleware/authMiddleware");
+router.use(authenticate); // All below routes are protected
 
 router.get("/", controller.getInventory);
 router.get("/:id", controller.getOneInventory);

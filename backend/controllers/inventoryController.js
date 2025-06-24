@@ -1,9 +1,11 @@
-const Inventory = require("../models/inventoryModel");
+const Inventory = require("../models/InventoryModel");
 
 // GET /inventory
 exports.getInventory = async (req, res) => {
+    const userId = req.user.id;
+
     try {
-        const items = await Inventory.find();
+        const items = await Inventory.find({ user: userId });
         res.json(items);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -12,8 +14,11 @@ exports.getInventory = async (req, res) => {
 
 // GET /inventory/:id
 exports.getOneInventory = async (req, res) => {
+    const userId = req.user.id;
+    const { id } = req.params;
+
     try {
-        const item = await Inventory.findById(req.params.id);
+        const item = await Inventory.findOne({ _id: id, user: userId });
         if (!item) return res.status(404).json({ error: "Item not found" });
         res.json(item);
     } catch (err) {
@@ -23,13 +28,18 @@ exports.getOneInventory = async (req, res) => {
 
 // POST /inventory
 exports.createItem = async (req, res) => {
+    const userId = req.user.id;
     const { name, price, quantity } = req.body;
+
+    if (!name || price == null || quantity == null) {
+        return res.status(400).json({ error: "Missing required fields" });
+    }
+
     try {
-        const newItem = new Inventory({ name, price, quantity });
+        const newItem = new Inventory({ user: userId, name, price, quantity });
         await newItem.save();
         res.status(201).json(newItem);
     } catch (err) {
-        // Handle duplicate key error (name must be unique)
         if (err.code === 11000) {
             res.status(400).json({ error: "Item name must be unique" });
         } else {
@@ -40,10 +50,17 @@ exports.createItem = async (req, res) => {
 
 // PUT /inventory/:id
 exports.updateItem = async (req, res) => {
+    const userId = req.user.id;
     const { name, price, quantity } = req.body;
+    const { id } = req.params;
+
+    if (!name || price == null || quantity == null) {
+        return res.status(400).json({ error: "Missing required fields" });
+    }
+
     try {
-        const updated = await Inventory.findByIdAndUpdate(
-            req.params.id,
+        const updated = await Inventory.findOneAndUpdate(
+            { _id: id, user: userId },
             { name, price, quantity },
             { new: true, runValidators: true }
         );
@@ -60,8 +77,14 @@ exports.updateItem = async (req, res) => {
 
 // DELETE /inventory/:id
 exports.deleteItem = async (req, res) => {
+    const userId = req.user.id;
+    const { id } = req.params;
+
     try {
-        const deleted = await Inventory.findByIdAndDelete(req.params.id);
+        const deleted = await Inventory.findOneAndDelete({
+            _id: id,
+            user: userId,
+        });
         if (!deleted) return res.status(404).json({ error: "Item not found" });
         res.json({ message: "Item deleted" });
     } catch (err) {
