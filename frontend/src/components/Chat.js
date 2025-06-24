@@ -1,5 +1,6 @@
 import styles from "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import {
     MainContainer,
     ChatContainer,
@@ -8,9 +9,42 @@ import {
     MessageInput,
     TypingIndicator,
 } from "@chatscope/chat-ui-kit-react";
-// import { CohereClient } from "cohere-ai";
+import axios from "axios";
 
-export default function Chat() {
+export default function Chat({ onLogout }) {
+    const [typing, setTyping] = useState(false);
+    const [messages, setMessages] = useState([{}]);
+    const fetchMessages = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const userId = localStorage.getItem("userId");
+
+            if (!token || !userId) return;
+
+            const response = await axios.get(
+                `${process.env.REACT_APP_BACKEND}messages?`,
+                // userId=${userId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            const loadedMessages = response.data.map((msg) => ({
+                message: msg.content,
+                sender: msg.sender,
+                direction: msg.sender === "user" ? "outgoing" : "incoming",
+            }));
+
+            setMessages(loadedMessages);
+        } catch (err) {
+            console.error("Failed to load messages:", err);
+        }
+    };
+    useEffect(() => {
+        fetchMessages();
+    }, []);
     const SYSTEM_PROMPT = `
     You are a backend interpreter for an inventory chatbot.
     Your job is to extract the intent and relevant fields from user commands.
@@ -24,101 +58,102 @@ export default function Chat() {
     }
 
     If the user input is invalid or unclear, return:
-    { "action": "unknown" }
+    { "action": "other" }
 
     don't return anything else, only a string starting with the opening brace of the dictionary "{"
     `;
 
-    const [typing, setTyping] = useState(false);
-    const [messages, setMessages] = useState([
-        {
-            message: "hello, i'm chat gpt",
-            sender: "gpt",
-            direction: "incoming",
-        },
-    ]);
     const handleSend = async (message) => {
+        const token = localStorage.getItem("token");
+        const userId = localStorage.getItem("userId");
         const newMessage = {
             message: message,
             sender: "user",
             direction: "outgoing",
         };
+
         const newMessages = [...messages, newMessage];
-        setMessages(newMessages);
+        setMessages(newMessages); // Update UI immediately
+        try {
+            // Step 1: Save the message in the backend
+            await axios.post(
+                process.env.REACT_APP_BACKEND + "messages",
+                {
+                    sender: "user",
+                    content: message,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            fetchMessages();
+        } catch (err) {
+            console.error("Error sending or reloading messages:", err);
+        }
+
+        // Optional: trigger bot response logic
         setTyping(true);
         processMessages(newMessages);
     };
+
     async function applySuitableRequests(object) {
         switch (object.action) {
             case "view":
                 let inventories = [];
-                await fetch(process.env.REACT_APP_BACKEND + "inventory", {
-                    method: "GET",
-                })
-                    .then((data) => {
-                        console.log("data is ", data);
 
-                        return data.json();
-                    })
-                    .then((res) => {
-                        console.log("res is ", res);
-                        inventories = res.map((inv) => {
-                            return {
-                                role: "user",
-                                content:
-                                    "we have an inventory " +
-                                    inv.name +
-                                    "with a price " +
-                                    inv.price +
-                                    "with quantity " +
-                                    inv.quantity,
-                            };
-                        });
-                        inventories = [
-                            {
-                                role: "system",
-                                content: `You are a helpful assistant that summarizes inventory data for non-technical users. 
-                        You'll be given all of the inventory items from the database agent. At the end, summarize the entire inventory 
-                        in a short, friendly way, like you're explaining it to a store owner. Group similar items together if possible.
-                        Do not list raw data, just give a helpful overview. 
-                        don't tell the owner any unnecessary information.
-                        by the way, you may receive only one , two messages, or even nothing.
-                        so don't ask for more inventory item in the chat stream.   
-                        `,
-                            },
-                            ...inventories,
-                        ];
-                    });
-                // #TODO Handle respons.status=429 too many requests
-                await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        Authorization:
-                            "Bearer " + process.env.REACT_APP_LLM_KEY,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        // model: "meta-llama/llama-4-maverick:free",
-                        model: "deepseek/deepseek-chat-v3-0324:free",
-                        messages: inventories,
-                    }),
-                })
-                    .then((data) => {
-                        console.log("data is ", data);
+                try {
+                    const invRes = await axios.get(
+                        process.env.REACT_APP_BACKEND + "inventory"
+                    );
 
-                        return data.json();
-                    })
-                    .then((res) => {
-                        console.log("res is ", res);
-                        setMessages([
-                            ...messages,
-                            {
-                                message: res.choices[0].message.content,
-                                sender: "gpt",
-                                direction: "incoming",
+                    inventories = invRes.data.map((inv) => ({
+                        role: "user",
+                        content: `we have an inventory ${inv.name} with a price ${inv.price} and quantity ${inv.quantity}`,
+                    }));
+
+                    inventories = [
+                        {
+                            role: "system",
+                            content: `You are a helpful assistant that summarizes inventory data for non-technical users. 
+                            You'll be given all of the inventory items from the database agent. At the end, summarize the entire inventory 
+                            in a short, friendly way, like you're explaining it to a store owner. Group similar items together if possible.
+                            Do not list raw data, just give a helpful overview. 
+                            Don't tell the owner any unnecessary information.
+                            You may receive only one or two messages, or even nothing—so don't ask for more inventory items.`,
+                        },
+                        ...inventories,
+                    ];
+
+                    const llmRes = await axios.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        {
+                            // model: "meta-llama/llama-4-maverick:free",
+                            model: "deepseek/deepseek-chat-v3-0324:free",
+                            messages: inventories,
+                        },
+                        {
+                            headers: {
+                                Authorization:
+                                    "Bearer " + process.env.REACT_APP_LLM_KEY,
+                                "Content-Type": "application/json",
                             },
-                        ]);
-                    });
+                        }
+                    );
+
+                    setMessages((prev) => [
+                        ...prev,
+                        {
+                            message: llmRes.data.choices[0].message.content,
+                            sender: "bot",
+                            direction: "incoming",
+                        },
+                    ]);
+                } catch (error) {
+                    console.error("Error in view action:", error);
+                }
 
                 break;
 
@@ -127,19 +162,14 @@ export default function Chat() {
         }
     }
     async function processMessages(messages) {
-        let apiMessages = messages.map((message) => {
-            if (message.sender === "gpt") {
-                return {
-                    role: "assistant",
-                    content: message.message,
-                };
-            } else if (message.sender === "user") {
-                return {
-                    role: "user",
-                    content: message.message,
-                };
-            }
-        });
+        const SYSTEM_PROMPT = `...`; // keep same
+
+        let apiMessages = messages.map((message) =>
+            message.sender === "bot"
+                ? { role: "assistant", content: message.message }
+                : { role: "user", content: message.message }
+        );
+
         apiMessages = [
             {
                 role: "system",
@@ -147,37 +177,30 @@ export default function Chat() {
             },
             ...apiMessages,
         ];
-        console.log(process.env.REACT_APP_LLM_KEY);
-        const response = await fetch(
-            "https://openrouter.ai/api/v1/chat/completions",
-            {
-                method: "POST",
-                headers: {
-                    Authorization: "Bearer " + process.env.REACT_APP_LLM_KEY,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    // model: "meta-llama/llama-4-maverick:free",
+
+        try {
+            const res = await axios.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                {
                     model: "deepseek/deepseek-chat-v3-0324:free",
                     messages: apiMessages,
-                }),
-            }
-        )
-            .then((data) => {
-                console.log("data is ", data);
+                },
+                {
+                    headers: {
+                        Authorization:
+                            "Bearer " + process.env.REACT_APP_LLM_KEY,
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
 
-                return data.json();
-            })
-            .then((res) => {
-                console.log(
-                    "res is ",
-                    JSON.parse(res.choices[0].message.content)
-                );
-                applySuitableRequests(
-                    JSON.parse(res.choices[0].message.content)
-                );
-            });
+            const parsed = JSON.parse(res.data.choices[0].message.content);
+            await applySuitableRequests(parsed);
+        } catch (error) {
+            console.error("Error processing LLM message:", error);
+        }
     }
+
     return (
         <div
             style={{
@@ -208,6 +231,7 @@ export default function Chat() {
                     ></MessageInput>
                 </ChatContainer>
             </MainContainer>
+            <button onClick={onLogout}>Logout</button>
         </div>
     );
 }

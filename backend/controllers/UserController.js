@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const User = require("../models/UserModel");
+const Message = require("../models/MessageModel");
 const jwt = require("jsonwebtoken");
 
 // POST /users/register
@@ -13,14 +14,24 @@ exports.register = async (req, res) => {
     try {
         const hashedPassword = await bcrypt.hash(
             password,
-            process.env.PASSWORD_HASH
+            Number(process.env.PASSWORD_HASH)
         );
+
         const newUser = new User({
             username,
             password: hashedPassword,
         });
 
         await newUser.save();
+        // Create welcome message from the bot
+        const welcomeMessage = new Message({
+            user: newUser._id,
+            sender: "bot",
+            content:
+                "Hello, I'm your friend BotMan. I'm here to help you with your inventory. What would you like to do?",
+        });
+
+        await welcomeMessage.save(); // ✅ save the message
         res.status(201).json({
             message: "User registered successfully",
             userId: newUser._id,
@@ -36,7 +47,6 @@ exports.register = async (req, res) => {
 
 // POST /users/login
 exports.login = async (req, res) => {
-    console.log("here");
     const { username, password } = req.body;
     if (!username || !password)
         return res
@@ -44,16 +54,12 @@ exports.login = async (req, res) => {
             .json({ error: "Username and password required" });
 
     try {
-        console.log("here");
-
         const user = await User.findOne({ username });
         if (!user) return res.status(404).json({ error: "User not found" });
-        console.log("here");
 
         const match = await bcrypt.compare(password, user.password);
         if (!match)
             return res.status(401).json({ error: "Incorrect password" });
-        console.log(user.id);
 
         const accessToken = jwt.sign(
             {
@@ -61,13 +67,12 @@ exports.login = async (req, res) => {
             },
             process.env.SECRET_KEY
         );
-        console.log("here2");
 
         res.json({
             message: "Login successful",
             userId: user._id,
             username: user.username,
-            accessToken,
+            token: accessToken,
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
