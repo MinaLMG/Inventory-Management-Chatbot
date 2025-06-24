@@ -51,6 +51,7 @@ export default function Chat() {
     async function applySuitableRequests(object) {
         switch (object.action) {
             case "view":
+                let inventories = [];
                 await fetch(process.env.REACT_APP_BACKEND + "inventory", {
                     method: "GET",
                 })
@@ -61,6 +62,62 @@ export default function Chat() {
                     })
                     .then((res) => {
                         console.log("res is ", res);
+                        inventories = res.map((inv) => {
+                            return {
+                                role: "user",
+                                content:
+                                    "we have an inventory " +
+                                    inv.name +
+                                    "with a price " +
+                                    inv.price +
+                                    "with quantity " +
+                                    inv.quantity,
+                            };
+                        });
+                        inventories = [
+                            {
+                                role: "system",
+                                content: `You are a helpful assistant that summarizes inventory data for non-technical users. 
+                        You'll be given all of the inventory items from the database agent. At the end, summarize the entire inventory 
+                        in a short, friendly way, like you're explaining it to a store owner. Group similar items together if possible.
+                        Do not list raw data, just give a helpful overview. 
+                        don't tell the owner any unnecessary information.
+                        by the way, you may receive only one , two messages, or even nothing.
+                        so don't ask for more inventory item in the chat stream.   
+                        `,
+                            },
+                            ...inventories,
+                        ];
+                    });
+                // #TODO Handle respons.status=429 too many requests
+                await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        Authorization:
+                            "Bearer " + process.env.REACT_APP_LLM_KEY,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        // model: "meta-llama/llama-4-maverick:free",
+                        model: "deepseek/deepseek-chat-v3-0324:free",
+                        messages: inventories,
+                    }),
+                })
+                    .then((data) => {
+                        console.log("data is ", data);
+
+                        return data.json();
+                    })
+                    .then((res) => {
+                        console.log("res is ", res);
+                        setMessages([
+                            ...messages,
+                            {
+                                message: res.choices[0].message.content,
+                                sender: "gpt",
+                                direction: "incoming",
+                            },
+                        ]);
                     });
 
                 break;
@@ -100,7 +157,8 @@ export default function Chat() {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    model: "meta-llama/llama-4-maverick:free",
+                    // model: "meta-llama/llama-4-maverick:free",
+                    model: "deepseek/deepseek-chat-v3-0324:free",
                     messages: apiMessages,
                 }),
             }
@@ -132,6 +190,7 @@ export default function Chat() {
             <MainContainer>
                 <ChatContainer>
                     <MessageList
+                        scrollBehavior="smooth"
                         typingIndicator={
                             typing ? (
                                 <TypingIndicator content="Typing .." />
