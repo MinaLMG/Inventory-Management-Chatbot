@@ -2,7 +2,8 @@ import "./App.css";
 import { useState, useEffect } from "react";
 import Chat from "./components/Chat";
 import Login from "./components/Login";
-
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 function App() {
     const [user, setUser] = useState(null); // user info like id or username
 
@@ -26,6 +27,19 @@ function App() {
 
     return (
         <div className="App-header">
+            <ToastContainer
+                position="top-center"
+                autoClose={5000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick={false}
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="light"
+                toastClassName="toastify-font"
+            />
             {user ? (
                 <Chat user={user} onLogout={handleLogout} />
             ) : (

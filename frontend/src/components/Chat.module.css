@@ -1,0 +1,37 @@
+.container {
+    width: 100%;
+}
+.header {
+    min-width: 80%;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    height: 55px;
+    background-color: #323845;
+}
+.header h1 {
+    text-align: center;
+}
+.account {
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+}
+
+.log-out {
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    cursor: pointer;
+}
+.log-out button {
+    background-color: inherit;
+    color: white;
+    border: none;
+}
+.chat {
+    position: relative;
+    height: calc(100vh - 55px);
+    max-width: 700px;
+    margin: auto;
+}

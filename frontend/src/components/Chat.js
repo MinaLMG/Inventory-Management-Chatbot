@@ -7,22 +7,22 @@ import {
     MessageInput,
     TypingIndicator,
 } from "@chatscope/chat-ui-kit-react";
-
+import classes from "./Chat.module.css";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { MdAccountCircle } from "react-icons/md";
+import { CiLogout } from "react-icons/ci";
 
-export default function Chat2({ onLogout }) {
+export default function Chat(props) {
     const [typing, setTyping] = useState(false);
     const [messages, setMessages] = useState([]);
     const [token, setToken] = useState(localStorage.getItem("token"));
-    const [userId, setUserId] = useState(localStorage.getItem("userId"));
     const fetchMessages = async () => {
         try {
-            if (!token || !userId) return;
+            if (!token) return;
 
             const response = await axios.get(
                 `${process.env.REACT_APP_BACKEND}messages`,
-                // userId=${userId}`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -405,36 +405,42 @@ export default function Chat2({ onLogout }) {
     }
 
     return (
-        <div
-            style={{
-                position: "relative",
-                height: "800px",
-                width: "700px",
-                margin: "auto",
-            }}
-        >
-            <MainContainer>
-                <ChatContainer>
-                    <MessageList
-                        scrollBehavior="smooth"
-                        typingIndicator={
-                            typing ? (
-                                <TypingIndicator content="Typing..." />
-                            ) : null
-                        }
-                    >
-                        {messages.map((msg, i) => (
-                            <Message key={i} model={msg} />
-                        ))}
-                    </MessageList>
-                    <MessageInput
-                        attachButton={false}
-                        placeholder="Type message here..."
-                        onSend={handleSend}
-                    />
-                </ChatContainer>
-            </MainContainer>
-            <button onClick={onLogout}>Logout</button>
+        <div className={classes.container}>
+            <div className={classes.header}>
+                <div className={classes.account}>
+                    <MdAccountCircle />
+                    {props.user.name}
+                </div>
+                <h1> invemtory mangement</h1>
+                <div className={classes["log-out"]}>
+                    <button onClick={props.onLogout}>
+                        Logout <CiLogout />
+                    </button>
+                </div>
+            </div>
+            <div className={classes.chat}>
+                <MainContainer>
+                    <ChatContainer>
+                        <MessageList
+                            scrollBehavior="smooth"
+                            typingIndicator={
+                                typing ? (
+                                    <TypingIndicator content="Typing..." />
+                                ) : null
+                            }
+                        >
+                            {messages.map((msg, i) => (
+                                <Message key={i} model={msg} />
+                            ))}
+                        </MessageList>
+                        <MessageInput
+                            attachButton={false}
+                            placeholder="Type message here..."
+                            onSend={handleSend}
+                        />
+                    </ChatContainer>
+                </MainContainer>
+            </div>
         </div>
     );
 }
