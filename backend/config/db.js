@@ -1,10 +1,11 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
 
-mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-});
+const clientOptions = {
+    serverApi: { version: "1", strict: true, deprecationErrors: true },
+};
+
+mongoose.connect(process.env.MONGODB_URI, clientOptions);
 
 const db = mongoose.connection;
 db.on("error", (err) => console.error("MongoDB connection error:", err));
