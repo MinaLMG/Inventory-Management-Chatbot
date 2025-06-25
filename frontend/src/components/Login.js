@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import Modal from "react-modal";
 import classes from "./Login.module.css";
+import InputField from "./general/InputField";
 
 Modal.setAppElement("#root"); // for accessibility
 
@@ -75,40 +76,42 @@ const AuthForm = ({ onLogin }) => {
         <div className={classes["auth-form-container"]}>
             <h2>{mode === "login" ? "Login" : "Register"}</h2>
             <form onSubmit={handleSubmit}>
-                <input
+                <InputField
+                    type="text"
                     name="username"
-                    placeholder="Username"
+                    id="username"
+                    placeholder="UserName"
+                    onChange={handleChange}
                     value={formData.username}
-                    onChange={handleChange}
-                    required
-                />
-
-                <input
-                    name="password"
+                    required={true}
+                ></InputField>
+                <InputField
                     type="password"
-                    placeholder="Password"
-                    value={formData.password}
+                    name="password"
+                    id="password"
+                    placeholder="pasword"
                     onChange={handleChange}
-                    required
-                />
+                    value={formData.password}
+                    required={true}
+                ></InputField>
 
                 {mode === "register" && (
-                    <input
-                        name="confirmPassword"
+                    <InputField
                         type="password"
-                        placeholder="Confirm Password"
-                        value={formData.confirmPassword}
+                        name="confirmPassword"
+                        id="confirmPassword"
+                        placeholder="confirm your pasword"
                         onChange={handleChange}
-                        required
-                    />
+                        value={formData.confirmPassword}
+                        required={true}
+                    ></InputField>
                 )}
-
-                <button type="submit">
+                <button type="submit" class="btn btn-primary">
                     {mode === "login" ? "Login" : "Register"}
                 </button>
             </form>
 
-            <p style={{ marginTop: "1rem" }}>
+            <p>
                 {mode === "login"
                     ? "Don't have an account?"
                     : "Already registered?"}{" "}

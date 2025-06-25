@@ -1,10 +1,13 @@
 .auth-form-container {
-    max-width: 400px;
+    width: 400px;
     margin: 2rem auto;
     padding: 2rem;
     border: 1px solid #ddd;
     border-radius: 12px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 1px 1px 10px rgba(256, 256, 256, 0.4);
+    background-color: white;
+    color: #282c34;
+    text-align: center;
 }
 
 .auth-form-container input {
@@ -13,10 +16,19 @@
     margin: 1rem 0;
     padding: 0.6rem;
     font-size: 1rem;
+    background-color: white;
 }
 
 .auth-form-container button {
-    width: 100%;
     padding: 0.6rem;
     font-weight: bold;
+    margin: auto;
+}
+
+.auth-form-container p {
+    margin-top: 1rem;
+    font-size: 1.1rem;
+}
+.auth-form-container p a {
+    text-decoration: none;
 }
