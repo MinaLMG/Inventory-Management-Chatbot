@@ -4,10 +4,13 @@ require("dotenv").config();
 require("./config/db");
 
 const app = express();
-// ✅ Allow requests from React dev server
+const allowedOrigins = [
+    "http://localhost:3000",
+    "https://inventory-management-chatbot-7upj.vercel.app",
+];
 app.use(
     cors({
-        origin: "http://localhost:3000", // React app
+        origin: allowedOrigins,
         credentials: true,
     })
 );
