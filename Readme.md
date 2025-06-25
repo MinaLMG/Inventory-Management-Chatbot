@@ -12,6 +12,8 @@ Welcome to **BotMan**, a smart inventory management assistant built with React, 
 
 BotMan helps you manage your inventory via natural language. Its main features include adding, viewing, updating, and deleting inventory items. It also supports general conversations when prompted, but inventory tasks are the focus.
 
+You'll find screenshoth for the model replies in the docs/screenshots directory
+
 **Stack used**:
 
 -   Frontend: React
@@ -34,10 +36,12 @@ npm start
 ```
 
 Create a .env in frontend/:
+
 ```
 REACT_APP_BACKEND=https://inventory-management-chatbot-7upj.vercel.app/
 REACT_APP_LLM_KEY=<your-llm-api-key>
 ```
+
 Backend
 
 ```
@@ -47,12 +51,14 @@ npm start
 ```
 
 Create a .env in backend/:
+
 ```
 MONGODB_URI=<your-mongodb-uri>
 PORT=<your-port>
 PASSWORD_HASH=<bcrypt-cost>
 SECRET_KEY=<jwt-secret>
 ```
+
 💡 You can skip local setup and use the live link above.
 
 ## 🏗️ Architecture
