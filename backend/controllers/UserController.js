@@ -27,8 +27,16 @@ exports.register = async (req, res) => {
         const welcomeMessage = new Message({
             user: newUser._id,
             sender: "bot",
-            content:
-                "Hello, I'm your friend BotMan. I'm here to help you with your inventory. What would you like to do?",
+            content: `Hello, I'm your friend BotMan. I'm here to help you with your inventory. What would you like to do? You can send messages like: 
+                    -   I want to know my inventory.
+                    -   Can you tell me about my inventory?
+                    -   Please add 8 bags to the inventory at price 15
+                    -   What is my inventory now?
+                    -   Add 6 nets each one with a cost 33.2
+                    -   Show me the whole inventory again
+                    -   Can you remove 'ball' item from inventory please?
+                    -   Please update the price of bags to 20.4$
+                `,
         });
 
         await welcomeMessage.save(); // ✅ save the message
