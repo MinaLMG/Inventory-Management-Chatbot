@@ -34,9 +34,10 @@ npm start
 ```
 
 Create a .env in frontend/:
+```
 REACT_APP_BACKEND=https://inventory-management-chatbot-7upj.vercel.app/
 REACT_APP_LLM_KEY=<your-llm-api-key>
-
+```
 Backend
 
 ```
@@ -46,11 +47,12 @@ npm start
 ```
 
 Create a .env in backend/:
+```
 MONGODB_URI=<your-mongodb-uri>
 PORT=<your-port>
 PASSWORD_HASH=<bcrypt-cost>
 SECRET_KEY=<jwt-secret>
-
+```
 💡 You can skip local setup and use the live link above.
 
 ## 🏗️ Architecture
